@@ -1,90 +1,43 @@
+import cv2
 import os
 import sys
-import time
-import psutil
-import ctypes
-from ctypes import wintypes
-import pyautogui as keyboard
-from datetime import datetime
+
+class CompareImageClass():
+
+    def __init__(self, image_1_name, image_2_name):
+        self.minimum_commutative_image_diff = 1
+        self.image_1_path = os.path.join(os.path.join(os.path.dirname(__file__), 'Test'), image_1_name)
+        self.image_2_path = os.path.join(os.path.join(os.path.dirname(__file__), 'Test'), image_2_name)
+
+    def compare_image(self):
+        image_1 = cv2.imread(self.image_1_path, 0)
+        image_2 = cv2.imread(self.image_2_path, 0)
+        commutative_image_diff = self.get_image_difference(image_1, image_2)
+
+        if commutative_image_diff < self.minimum_commutative_image_diff:
+            print("Matched")
+            return commutative_image_diff
+        return 10000 
+
+    @staticmethod
+    def get_image_difference(image_1, image_2):
+        first_image_hist = cv2.calcHist([image_1], [0], None, [256], [0, 256])
+        second_image_hist = cv2.calcHist([image_2], [0], None, [256], [0, 256])
+
+        img_hist_diff = cv2.compareHist(first_image_hist, second_image_hist, cv2.HISTCMP_BHATTACHARYYA)
+        img_template_probability_match = cv2.matchTemplate(first_image_hist, second_image_hist, cv2.TM_CCOEFF_NORMED)[0][0]
+        img_template_diff = 1 - img_template_probability_match
+
+        # taking only 10% of histogram diff, since it's less accurate than template method
+        commutative_image_diff = (img_hist_diff / 10) + img_template_diff
+        return commutative_image_diff
 
 
-class HonkaiPlayer:
-    def __init__(self, stamina):
-        self.stamina = stamina
-        self.game_exe = 'D:\AndroidEmulator\LDPlayer\dnplayer.exe'
+if __name__ == '__main__':
+    image1 = 'genshin-impact-sandbearer-wood.jpg'
+    image2 = 'mFsU8mD.png'
 
-
-    def play_level(self):
-        '''
-        L: Choose Level
-        B: Ready for battle (X2)
-        S: Skip cutscene
-        C: Confirm Skip
-        '''
-        keyboard.press('l')
-        time.sleep(2)
-
-        keyboard.press('b')
-        time.sleep(1)
-        keyboard.press('b')
-        time.sleep(12)
-
-        keyboard.press('s')
-        time.sleep(1)
-        keyboard.press('s')
-        time.sleep(1)
-        keyboard.press('c')
-        time.sleep(3)
-
-        keyboard.press('s')
-        time.sleep(1)
-        keyboard.press('c')
-        time.sleep(3)
-
-        keyboard.press('s')
-        time.sleep(1)
-        keyboard.press('c')
-        time.sleep(10)
-
-        keyboard.press('b')
-        time.sleep(10)
-        keyboard.press('b')
-        time.sleep(5)
-
-    def validate_game_activity(self):
-        user32 = ctypes.windll.user32
-
-        h_wnd = user32.GetForegroundWindow()
-        pid = wintypes.DWORD()
-        user32.GetWindowThreadProcessId(h_wnd, ctypes.byref(pid))
-        # print(pid.value)
-
-        p = psutil.Process(pid.value)
-        
-        # print(p.exe())
-        return p.exe() == self.game_exe
-
-
-    def honkai_driver(self):
-        rounds = 1
-
-        print('Round 1 starting in 10 seconds...')
-        time.sleep(10)
-
-        while True:
-            start_time = time.time()
-            curr_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-            if self.validate_game_activity() == False:
-                print(f"[{curr_time}] Honkai Impact program terminated due to validation failure (game program window unfocused).")
-                sys.exit(0)
-
-            self.play_level()
-
-            print(f"{curr_time} Round {rounds} has completed! [{time.time() - start_time} seconds]")
-            rounds += 1
-
-
-if __name__ == "__main__":
-    honkai_impact = HonkaiPlayer(400)
-    honkai_impact.honkai_driver()
+    compare_image = CompareImageClass(image1, image2)
+    image_difference = compare_image.compare_image()
+    print(compare_image.image_1_path)
+    print(image_difference)
